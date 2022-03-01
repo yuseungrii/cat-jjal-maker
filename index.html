@@ -44,12 +44,20 @@
       },
     };
 
-    const MainCard = (props) => {
+    // API
+    const fetchCat = async (text) => {
+      const OPEN_API_DOMAIN = "https://cataas.com";
+      const response = await fetch(`${OPEN_API_DOMAIN}/cat/says/${text}?json=true`);
+      const responseJson = await response.json();
+      return `${OPEN_API_DOMAIN}/${responseJson.url}`;
+    };
 
+    const MainCard = (props) => {
+      const heartIcon = props.alreadyFavorites ? "💖" : "🤍";
       return (
         <div className="main-card">
           <img src={props.img} alt="고양이" width="400" />
-          <button onClick={props.onHeartClick}>🤍</button>
+          <button onClick={props.onHeartClick}> {heartIcon} </button>
         </div>
       );
     }
@@ -87,7 +95,7 @@
           return;
         }
 
-        UpdateMainCat();
+        UpdateMainCat(value);
 
       }
 
@@ -115,6 +123,11 @@
     }
 
     function Favorites({ favorites }) {
+
+      if (favorites.length === 0) {
+        return <div>사진 위 하트를 눌러 고양이 사진을 저장해봐요!</div>
+      }
+
       return (
         <ul className="favorites">
           {
@@ -126,27 +139,47 @@
       );
     }
 
-    const App = () => {
+    const App = () => { // 새로 그려질때마다 App이 호출
       const CAT1 = "https://cataas.com/cat/60b73094e04e18001194a309/says/react";
-      const CAT2 = "https://cataas.com//cat/5e9970351b7a400011744233/says/inflearn";
-      const CAT3 = "https://cataas.com/cat/595f280b557291a9750ebf65/says/JavaScript";
-
-      const [counter, setCounter] = React.useState(
-        jsonLocalStorage.getItem('counter')
-      );
       const [mainCat, setMainCat] = React.useState(CAT1);
-      const [favorites, setFavorites] = React.useState(
-        jsonLocalStorage.getItem('favorites') || []
-      );
+      const [counter, setCounter] = React.useState(() => {
+        return jsonLocalStorage.getItem('counter');
+      });
+      const [favorites, setFavorites] = React.useState(() => {
+        return jsonLocalStorage.getItem('favorites') || [];
+      });
+
+      // 초기화
+      async function setInitCat() {
+        // API call
+        const newCat = await fetchCat('First cat');
+        console.log(newCat);
+        setMainCat(newCat);
+      }
+
+      React.useEffect(() => { // 원할때만 호출
+        setInitCat();
+      }, [])
+      // setInitCat(); // 왜 계속 호출?
+
+      const alreadyFavorites = favorites.includes(mainCat);
 
       // html 기본동작이 form이 일어나면 refresh 됨
-      function UpdateMainCat() {
+      async function UpdateMainCat(value) {
         //event.preventDefault(); // 기본동작 막기 (JavaScript)
-        const nextCounter = counter + 1;
 
-        setMainCat(CAT2);
-        setCounter(nextCounter);
-        jsonLocalStorage.setItem("counter", nextCounter);
+        const newCat = await fetchCat(value);
+
+        setMainCat(newCat);
+
+        setCounter((prev) => { // setCounter(nextCounter);
+
+          const nextCounter = prev + 1;
+          jsonLocalStorage.setItem("counter", nextCounter);
+
+          return nextCounter;
+        })
+
       }
 
       // 하트 눌림
@@ -157,11 +190,13 @@
 
       }
 
+      const counterTitle = counter === null ? '' : counter + '번째';
+
       return (
         <div>
-          <Title> {counter} 번째 고양이 가라사대</Title>
+          <Title> {counterTitle} 고양이 가라사대</Title>
           <FormTag UpdateMainCat={UpdateMainCat} />
-          <MainCard img={mainCat} onHeartClick={handleHeartClick} />
+          <MainCard img={mainCat} onHeartClick={handleHeartClick} alreadyFavorites={alreadyFavorites} />
           <Favorites favorites={favorites} />
         </div>
       );
